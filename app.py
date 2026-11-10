@@ -1,7 +1,7 @@
 """작업허가서 누락 점검 웹 서버.
 
 로컬 실행:  uvicorn app:app --host 0.0.0.0 --port 8000
-Vercel:     api/index.py 가 이 app 을 그대로 사용합니다.
+Vercel:     FastAPI 프리셋이 이 파일의 app 을 자동으로 실행합니다.
 
 환경변수
 - ANTHROPIC_API_KEY : Claude API 키 (필수)

@@ -23,13 +23,13 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 
 ## Vercel 배포
 1. 이 폴더를 GitHub 저장소에 올립니다.
-2. https://vercel.com/new 에서 해당 저장소를 Import 합니다. 설정은 기본값 그대로 둡니다(Framework Preset: Other).
+2. https://vercel.com/new 에서 해당 저장소를 Import 합니다. Framework Preset은 자동 인식되는 FastAPI 그대로 둡니다(`app.py`의 `app`을 실행).
 3. Environment Variables에 다음을 넣습니다.
    - `ANTHROPIC_API_KEY` : Claude API 키 (https://console.anthropic.com 에서 발급)
    - `ACCESS_CODE` : 사내 공유용 접근 코드 (권장. 설정하지 않으면 URL을 아는 누구나 사용할 수 있어 API 비용이 나갈 수 있음)
 4. Deploy를 누르면 `https://<프로젝트명>.vercel.app` 주소가 생깁니다.
 
 참고
-- 판독에 30초~1분 정도 걸립니다. `vercel.json`에서 함수 최대 실행시간을 300초로 설정했습니다.
+- 판독에 30초~1분 정도 걸립니다(Vercel 함수 기본 최대 실행시간 300초 이내).
 - Vercel 요청 한도(4.5MB) 때문에 사진은 브라우저에서 긴 변 2000px JPEG로 줄인 뒤 전송합니다.
 - 사진은 서버에 저장하지 않습니다.
