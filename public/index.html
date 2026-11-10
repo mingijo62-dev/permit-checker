@@ -162,11 +162,22 @@ async function call(url, body, headers = {}) {
   const btn = $("#run");
   const label = btn.textContent;
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>판독 중… (30초~1분)';
+  btn.innerHTML = '<span class="spinner"></span>판독 중… (보통 20초~1분)';
   $("#out").innerHTML = "";
   try {
     if (typeof body === "function") body = await body();
-    const res = await fetch(url, { method: "POST", body, headers });
+    // 서버 제한시간(최대 약 4분) 안에 응답이 없으면 기다리지 않고 안내
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 240000);
+    let res;
+    try {
+      res = await fetch(url, { method: "POST", body, headers, signal: ctrl.signal });
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("판독 시간이 너무 오래 걸려 중단했습니다. 잠시 후 다시 시도해 주세요.");
+      throw new Error("서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.");
+    } finally {
+      clearTimeout(timer);
+    }
     let data;
     try { data = await res.json(); } catch (e) { data = {}; }
     if (res.status === 413) throw new Error("사진 용량이 너무 큽니다. 장수를 줄여 다시 시도해 주세요.");

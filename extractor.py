@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import time
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -17,9 +18,11 @@ from PIL import Image, ImageOps
 
 import form_spec as F
 
-# 기본은 최신 Flash 별칭. 이 이름을 못 찾으면 키로 쓸 수 있는 Flash 모델을 자동으로 골라 씁니다.
-# 특정 모델로 고정하려면 GEMINI_MODEL 환경변수 설정(예: gemini-2.5-flash).
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+# 기본 모델. 이 이름을 못 찾으면 키로 쓸 수 있는 Flash 모델을 자동으로 골라 씁니다.
+# 다른 모델로 바꾸려면 GEMINI_MODEL 환경변수 설정.
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# Vercel 함수 제한시간(300초) 안에 끝나도록: 요청 1회 최대 100초, 재시도는 1회만, 대기는 짧게
+REQUEST_TIMEOUT_MS = 100_000
 MAX_EDGE = 2400  # 긴 변 기준 리사이즈(px). 너무 작으면 손글씨 판독률이 떨어짐.
 
 log = logging.getLogger("permit")
@@ -34,7 +37,11 @@ def client() -> genai.Client:
         if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
             raise MissingKeyError()
         # GEMINI_API_KEY 환경변수를 자동으로 읽음. v1beta 에서만 쓸 수 있는 별칭/JSON 스키마 기능 때문에 v1beta 사용.
-        _client = genai.Client(http_options=types.HttpOptions(api_version="v1beta"))
+        _client = genai.Client(http_options=types.HttpOptions(
+            api_version="v1beta",
+            timeout=REQUEST_TIMEOUT_MS,
+            retry_options=types.HttpRetryOptions(attempts=2, initial_delay=2, max_delay=5),
+        ))
     return _client
 
 
@@ -250,6 +257,23 @@ def _strip_additional_props(schema):
 GEMINI_SCHEMA = _strip_additional_props(OUTPUT_SCHEMA)
 
 
+def _config(model: str) -> types.GenerateContentConfig:
+    thinking = None
+    if "2.5" in model:
+        # 2.5 Flash 는 기본으로 오래 '생각'함 → 끄면 훨씬 빨라짐(칸 판독은 생각이 거의 필요 없음)
+        thinking = types.ThinkingConfig(thinking_budget=0)
+    elif re.search(r"gemini-[3-9]", model):
+        thinking = types.ThinkingConfig(thinking_level="low")
+    return types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_json_schema=GEMINI_SCHEMA,
+        temperature=0,
+        media_resolution="MEDIA_RESOLUTION_HIGH",  # 작은 체크박스/손글씨 판독용
+        thinking_config=thinking,
+    )
+
+
 def extract(images: list[bytes]) -> dict:
     contents: list = []
     for i, raw in enumerate(images, 1):
@@ -260,17 +284,11 @@ def extract(images: list[bytes]) -> dict:
         ))
     contents.append("위 사진의 작업허가서를 판독해 JSON으로 보고하세요.")
 
-    config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_PROMPT,
-        response_mime_type="application/json",
-        response_json_schema=GEMINI_SCHEMA,
-        temperature=0,
-        media_resolution="MEDIA_RESOLUTION_HIGH",  # 작은 체크박스/손글씨 판독용
-    )
     global _model, _model_resolved
+    started = time.monotonic()
     try:
         try:
-            resp = client().models.generate_content(model=_model, contents=contents, config=config)
+            resp = client().models.generate_content(model=_model, contents=contents, config=_config(_model))
         except genai_errors.ClientError as e:
             if e.code != 404 or _model_resolved:
                 raise
@@ -281,7 +299,7 @@ def extract(images: list[bytes]) -> dict:
                 raise
             log.warning("model %s not found, using %s", _model, found)
             _model = found
-            resp = client().models.generate_content(model=_model, contents=contents, config=config)
+            resp = client().models.generate_content(model=_model, contents=contents, config=_config(_model))
     except genai_errors.ClientError as e:
         msg = str(e)
         if e.code == 429:
@@ -292,7 +310,16 @@ def extract(images: list[bytes]) -> dict:
             raise ExtractionError(f"AI 모델({_model})을 찾을 수 없습니다. GEMINI_MODEL 환경변수를 확인하세요.", 500)
         raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
     except genai_errors.ServerError as e:
+        log.warning("gemini server error %s after %.0fs", e.code, time.monotonic() - started)
+        if e.code == 503:
+            raise ExtractionError("Google AI 무료 서버가 혼잡합니다. 1~2분 뒤 다시 시도해 주세요.", 503)
         raise ExtractionError(f"AI 판독 서버 오류({e.code}). 잠시 후 다시 시도해 주세요.", 502)
+    except Exception as e:
+        if "Timeout" not in type(e).__name__:
+            raise
+        log.warning("gemini timeout after %.0fs (model=%s)", time.monotonic() - started, _model)
+        raise ExtractionError("AI 응답이 너무 오래 걸립니다(무료 서버 혼잡). 잠시 후 다시 시도해 주세요.", 504)
+    log.info("gemini ok in %.0fs (model=%s)", time.monotonic() - started, _model)
 
     cand = (resp.candidates or [None])[0]
     reason = getattr(getattr(cand, "finish_reason", None), "name", "") if cand else ""
