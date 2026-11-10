@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
+import re
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -15,11 +17,15 @@ from PIL import Image, ImageOps
 
 import form_spec as F
 
-# gemini-flash-latest: 항상 최신 Flash 모델을 가리키는 별칭(무료 사용량 제공). 바꾸려면 GEMINI_MODEL 설정.
+# 기본은 최신 Flash 별칭. 이 이름을 못 찾으면 키로 쓸 수 있는 Flash 모델을 자동으로 골라 씁니다.
+# 특정 모델로 고정하려면 GEMINI_MODEL 환경변수 설정(예: gemini-2.5-flash).
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 MAX_EDGE = 2400  # 긴 변 기준 리사이즈(px). 너무 작으면 손글씨 판독률이 떨어짐.
 
+log = logging.getLogger("permit")
 _client: genai.Client | None = None
+_model: str = MODEL
+_model_resolved = False
 
 
 def client() -> genai.Client:
@@ -27,8 +33,33 @@ def client() -> genai.Client:
     if _client is None:
         if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
             raise MissingKeyError()
-        _client = genai.Client()  # GEMINI_API_KEY 환경변수를 자동으로 읽음
+        # GEMINI_API_KEY 환경변수를 자동으로 읽음. v1beta 에서만 쓸 수 있는 별칭/JSON 스키마 기능 때문에 v1beta 사용.
+        _client = genai.Client(http_options=types.HttpOptions(api_version="v1beta"))
     return _client
+
+
+_EXCLUDE = ("lite", "image", "tts", "audio", "live", "embed", "robotics", "computer", "veo", "imagen")
+
+
+def pick_flash_model(models) -> str | None:
+    """사용 가능한 모델 목록에서 이미지 판독용 Flash 모델 하나를 고름(정식판 우선, 그중 최신 버전)."""
+    best, best_key = None, None
+    for m in models:
+        name = (m.name or "").removeprefix("models/")
+        actions = m.supported_actions or []
+        if "flash" not in name or any(x in name for x in _EXCLUDE):
+            continue
+        if actions and "generateContent" not in actions:
+            continue
+        ver = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+        key = (
+            "preview" not in name and "exp" not in name,  # 정식판 우선(무료 한도/안정성)
+            float(ver.group(1)) if ver else 0.0,  # 그다음 최신 버전
+            name.endswith("latest") or name.count("-") <= 2,  # 날짜가 붙은 고정판보다 기본 이름 우선
+        )
+        if best_key is None or key > best_key:
+            best, best_key = name, key
+    return best
 
 
 # ---------------------------------------------------------------------------
@@ -229,18 +260,28 @@ def extract(images: list[bytes]) -> dict:
         ))
     contents.append("위 사진의 작업허가서를 판독해 JSON으로 보고하세요.")
 
+    config = types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_json_schema=GEMINI_SCHEMA,
+        temperature=0,
+        media_resolution="MEDIA_RESOLUTION_HIGH",  # 작은 체크박스/손글씨 판독용
+    )
+    global _model, _model_resolved
     try:
-        resp = client().models.generate_content(
-            model=MODEL,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                response_json_schema=GEMINI_SCHEMA,
-                temperature=0,
-                media_resolution="MEDIA_RESOLUTION_HIGH",  # 작은 체크박스/손글씨 판독용
-            ),
-        )
+        try:
+            resp = client().models.generate_content(model=_model, contents=contents, config=config)
+        except genai_errors.ClientError as e:
+            if e.code != 404 or _model_resolved:
+                raise
+            # 모델 이름을 못 찾음 → 이 키로 쓸 수 있는 Flash 모델을 찾아 한 번 재시도
+            _model_resolved = True
+            found = pick_flash_model(client().models.list())
+            if not found:
+                raise
+            log.warning("model %s not found, using %s", _model, found)
+            _model = found
+            resp = client().models.generate_content(model=_model, contents=contents, config=config)
     except genai_errors.ClientError as e:
         msg = str(e)
         if e.code == 429:
@@ -248,7 +289,7 @@ def extract(images: list[bytes]) -> dict:
         if e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
             raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
         if e.code == 404:
-            raise ExtractionError(f"AI 모델({MODEL})을 찾을 수 없습니다. GEMINI_MODEL 환경변수를 확인하세요.", 500)
+            raise ExtractionError(f"AI 모델({_model})을 찾을 수 없습니다. GEMINI_MODEL 환경변수를 확인하세요.", 500)
         raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
     except genai_errors.ServerError as e:
         raise ExtractionError(f"AI 판독 서버 오류({e.code}). 잠시 후 다시 시도해 주세요.", 502)
