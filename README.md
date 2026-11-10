@@ -3,7 +3,7 @@
 화기/일반/위험 작업허가서(1쪽 본문 + 2쪽 잠재위험요인) 사진을 올리면 빠진 칸을 알려주는 웹사이트입니다.
 
 ## 동작 방식
-1. **extractor.py**: Claude API(비전)가 사진에서 각 칸의 상태(기재됨/빈칸/판독불가)와 가스 측정값을 읽어 JSON으로 돌려줍니다. 누락 여부는 AI가 판단하지 않습니다.
+1. **extractor.py**: Google Gemini API(무료 사용량)가 사진에서 각 칸의 상태(기재됨/빈칸/판독불가)와 가스 측정값을 읽어 JSON으로 돌려줍니다. 누락 여부는 AI가 판단하지 않습니다.
 2. **rules.py**: 정해진 규칙으로 누락을 계산합니다. 같은 입력이면 항상 같은 결과가 나옵니다.
    - 작업 종류(화기 등)와 보충작업(밀폐/정전/굴착/방사선/고소/중장비)에 따라 필수 칸이 달라집니다
    - 안전조치에 □(필요) 표시가 있으면 ○(확인)도 있어야 합니다. 연장 승인 시에는 ◇도 필요합니다
@@ -15,7 +15,7 @@
 ## 로컬 실행
 ```bash
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=발급받은키
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 휴대폰으로 `http://<서버IP>:8000` 에 접속합니다. "사진 없이 예시 결과 보기"는 API 키가 없어도 동작합니다.
@@ -25,7 +25,7 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 1. 이 폴더를 GitHub 저장소에 올립니다.
 2. https://vercel.com/new 에서 해당 저장소를 Import 합니다. Framework Preset은 자동 인식되는 FastAPI 그대로 둡니다(`app.py`의 `app`을 실행).
 3. Environment Variables에 다음을 넣습니다.
-   - `ANTHROPIC_API_KEY` : Claude API 키 (https://console.anthropic.com 에서 발급)
+   - `GEMINI_API_KEY` : Google AI Studio 무료 API 키 (https://aistudio.google.com/apikey 에서 발급, 카드 등록 불필요)
    - `ACCESS_CODE` : 사내 공유용 접근 코드 (권장. 설정하지 않으면 URL을 아는 누구나 사용할 수 있어 API 비용이 나갈 수 있음)
 4. Deploy를 누르면 `https://<프로젝트명>.vercel.app` 주소가 생깁니다.
 
@@ -33,3 +33,6 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 - 판독에 30초~1분 정도 걸립니다(Vercel 함수 기본 최대 실행시간 300초 이내).
 - Vercel 요청 한도(4.5MB) 때문에 사진은 브라우저에서 긴 변 2000px JPEG로 줄인 뒤 전송합니다.
 - 사진은 서버에 저장하지 않습니다.
+- 무료 사용량에는 분당/일일 요청 한도가 있습니다. 한도를 넘으면 화면에 안내 문구가 나옵니다.
+- 무료 사용량에서는 Google이 입력 데이터를 서비스 개선에 활용할 수 있습니다(약관 참조). 허가서의 개인정보 처리 방침을 사내 규정과 함께 확인하세요.
+- 모델을 바꾸려면 `GEMINI_MODEL` 환경변수를 설정합니다(기본값 `gemini-flash-latest`).

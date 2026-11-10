@@ -1,29 +1,33 @@
-"""사진 → 칸별 기재 상태(JSON) 추출. Claude API 비전 + 구조화 출력 사용.
+"""사진 → 칸별 기재 상태(JSON) 추출. Google Gemini API(무료 사용량) 비전 + JSON 출력 사용.
 
 AI는 '판단'하지 않고 '읽기'만 합니다. 누락 판단은 rules.py 담당.
 """
 from __future__ import annotations
 
-import base64
 import io
 import json
 import os
 
-import anthropic
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types
 from PIL import Image, ImageOps
 
 import form_spec as F
 
-MODEL = os.environ.get("PERMIT_MODEL", "claude-opus-5-5")
+# gemini-flash-latest: 항상 최신 Flash 모델을 가리키는 별칭(무료 사용량 제공). 바꾸려면 GEMINI_MODEL 설정.
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 MAX_EDGE = 2400  # 긴 변 기준 리사이즈(px). 너무 작으면 손글씨 판독률이 떨어짐.
 
-_client: anthropic.Anthropic | None = None
+_client: genai.Client | None = None
 
 
-def client() -> anthropic.Anthropic:
+def client() -> genai.Client:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic()
+        if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+            raise MissingKeyError()
+        _client = genai.Client()  # GEMINI_API_KEY 환경변수를 자동으로 읽음
     return _client
 
 
@@ -174,8 +178,8 @@ OUTPUT_SCHEMA = {
 # ---------------------------------------------------------------------------
 # 이미지 전처리
 # ---------------------------------------------------------------------------
-def prepare_image(raw: bytes) -> str:
-    """휴대폰 사진 회전 보정 + 리사이즈 + JPEG 변환 후 base64 반환."""
+def prepare_image(raw: bytes) -> bytes:
+    """휴대폰 사진 회전 보정 + 리사이즈 + JPEG 변환."""
     im = Image.open(io.BytesIO(raw))
     im = ImageOps.exif_transpose(im).convert("RGB")
     w, h = im.size
@@ -184,46 +188,80 @@ def prepare_image(raw: bytes) -> str:
         im = im.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, format="JPEG", quality=90)
-    return base64.standard_b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
 
 
 # ---------------------------------------------------------------------------
 # 호출
 # ---------------------------------------------------------------------------
 class ExtractionError(RuntimeError):
-    pass
+    """사용자에게 그대로 보여줄 메시지와 HTTP 상태코드를 담는 오류."""
+
+    def __init__(self, message: str, status: int = 422):
+        super().__init__(message)
+        self.status = status
+
+
+class MissingKeyError(ExtractionError):
+    def __init__(self):
+        super().__init__("서버에 GEMINI_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.", 500)
+
+
+def _strip_additional_props(schema):
+    """Gemini JSON 스키마 호환을 위해 additionalProperties 제거."""
+    if isinstance(schema, dict):
+        return {k: _strip_additional_props(v) for k, v in schema.items() if k != "additionalProperties"}
+    if isinstance(schema, list):
+        return [_strip_additional_props(v) for v in schema]
+    return schema
+
+
+GEMINI_SCHEMA = _strip_additional_props(OUTPUT_SCHEMA)
 
 
 def extract(images: list[bytes]) -> dict:
-    content: list[dict] = []
+    contents: list = []
     for i, raw in enumerate(images, 1):
-        content.append({"type": "text", "text": f"사진 {i}"})
-        content.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": "image/jpeg", "data": prepare_image(raw)},
-        })
-    content.append({"type": "text", "text": "위 사진의 작업허가서를 판독해 JSON으로 보고하세요."})
+        contents.append(f"사진 {i}")
+        contents.append(types.Part.from_bytes(
+            data=prepare_image(raw),
+            mime_type="image/jpeg",
+        ))
+    contents.append("위 사진의 작업허가서를 판독해 JSON으로 보고하세요.")
 
-    with client().beta.messages.stream(
-        model=MODEL,
-        max_tokens=64000,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",  # 안전 분류기가 거절하면 서버가 다른 모델로 자동 재시도
-        thinking={"type": "adaptive"},
-        output_config={
-            "effort": "high",  # 손글씨/체크 판독 정확도 우선
-            "format": {"type": "json_schema", "schema": OUTPUT_SCHEMA},
-        },
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
-    ) as stream:
-        msg = stream.get_final_message()
+    try:
+        resp = client().models.generate_content(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_json_schema=GEMINI_SCHEMA,
+                temperature=0,
+                media_resolution="MEDIA_RESOLUTION_HIGH",  # 작은 체크박스/손글씨 판독용
+            ),
+        )
+    except genai_errors.ClientError as e:
+        msg = str(e)
+        if e.code == 429:
+            raise ExtractionError("무료 사용량 한도에 도달했습니다. 1분 뒤 다시 시도하거나, 오늘 한도가 찼다면 내일 다시 시도해 주세요.", 429)
+        if e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
+            raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
+        if e.code == 404:
+            raise ExtractionError(f"AI 모델({MODEL})을 찾을 수 없습니다. GEMINI_MODEL 환경변수를 확인하세요.", 500)
+        raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
+    except genai_errors.ServerError as e:
+        raise ExtractionError(f"AI 판독 서버 오류({e.code}). 잠시 후 다시 시도해 주세요.", 502)
 
-    if msg.stop_reason == "refusal":
-        raise ExtractionError("AI가 이 이미지 판독을 거절했습니다. 다른 사진으로 다시 시도해 주세요.")
-    if msg.stop_reason == "max_tokens":
-        raise ExtractionError("판독 결과가 너무 길어 중단되었습니다.")
-    text = next((b.text for b in msg.content if b.type == "text"), None)
-    if not text:
-        raise ExtractionError("AI 응답에 결과가 없습니다.")
-    return json.loads(text)
+    cand = (resp.candidates or [None])[0]
+    reason = getattr(getattr(cand, "finish_reason", None), "name", "") if cand else ""
+    if reason == "MAX_TOKENS":
+        raise ExtractionError("판독 결과가 너무 길어 중단되었습니다. 다시 시도해 주세요.")
+    if not resp.text:
+        if reason in ("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "RECITATION"):
+            raise ExtractionError("AI가 이 이미지 판독을 거절했습니다. 다른 사진으로 다시 시도해 주세요.")
+        raise ExtractionError("AI 응답에 결과가 없습니다. 다시 시도해 주세요.")
+    try:
+        return json.loads(resp.text)
+    except json.JSONDecodeError:
+        raise ExtractionError("AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.")

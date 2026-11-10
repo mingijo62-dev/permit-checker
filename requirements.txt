@@ -1,5 +1,5 @@
-anthropic>=2.7.0
 fastapi
 uvicorn[standard]
 python-multipart
 pillow
+google-genai>=1.0

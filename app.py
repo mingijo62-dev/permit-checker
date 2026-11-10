@@ -4,9 +4,9 @@
 Vercel:     FastAPI 프리셋이 이 파일의 app 을 자동으로 실행합니다.
 
 환경변수
-- ANTHROPIC_API_KEY : Claude API 키 (필수)
+- GEMINI_API_KEY    : Google AI Studio 무료 API 키 (필수)
 - ACCESS_CODE       : 설정하면 이 코드를 입력한 사람만 판독 가능 (공개 URL 비용 보호용, 권장)
-- PERMIT_MODEL      : 기본 claude-opus-5-5
+- GEMINI_MODEL      : 기본 gemini-flash-latest
 - PERMIT_DEBUG      : 1 이면 AI 판독 원본을 응답에 포함
 """
 from __future__ import annotations
@@ -17,7 +17,6 @@ import logging
 import os
 from pathlib import Path
 
-import anthropic
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
@@ -70,20 +69,11 @@ async def check(
     try:
         data = extractor.extract(images)
     except extractor.ExtractionError as e:
-        raise HTTPException(422, str(e))
-    except anthropic.AuthenticationError:
-        raise HTTPException(500, "서버의 ANTHROPIC_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.")
-    except anthropic.RateLimitError:
-        raise HTTPException(429, "요청이 많습니다. 잠시 후 다시 시도해 주세요.")
-    except anthropic.APIStatusError as e:
-        log.exception("Claude API error")
-        raise HTTPException(502, f"AI 판독 서버 오류({e.status_code}). 잠시 후 다시 시도해 주세요.")
-    except anthropic.APIConnectionError:
-        raise HTTPException(502, "AI 판독 서버에 연결할 수 없습니다.")
-    except Exception as e:  # 이미지 파일 손상, 키 미설정 등
+        if e.status >= 500:
+            log.error("extract failed: %s", e)
+        raise HTTPException(e.status, str(e))
+    except Exception as e:  # 이미지 파일 손상, 네트워크 오류 등
         log.exception("check failed")
-        if "authentication" in str(e).lower():
-            raise HTTPException(500, "서버에 ANTHROPIC_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.")
         raise HTTPException(400, f"사진을 처리하지 못했습니다: {e}")
 
     result = rules.evaluate(data, stage)
