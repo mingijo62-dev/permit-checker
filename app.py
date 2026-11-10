@@ -1,4 +1,4 @@
-"""작업허가서 누락 점검 웹 서버.
+"""작업허가서 점검 웹 서버.
 
 로컬 실행:  uvicorn app:app --host 0.0.0.0 --port 8000
 Vercel:     FastAPI 프리셋이 이 파일의 app 을 자동으로 실행합니다.
@@ -28,7 +28,7 @@ MAX_FILES = 6
 MAX_BYTES = 4 * 1024 * 1024  # Vercel 요청 본문 한도(4.5MB) 때문에 화면에서 미리 줄여서 보냄
 
 log = logging.getLogger("permit")
-app = FastAPI(title="작업허가서 누락 점검")
+app = FastAPI(title="작업허가서 점검")
 
 
 def _check_access(code: str | None):
