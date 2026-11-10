@@ -1,0 +1,946 @@
+{
+ "pages_seen": [
+  "page1",
+  "page2"
+ ],
+ "fields": [
+  {
+   "id": "permit_no",
+   "state": "filled"
+  },
+  {
+   "id": "applicant_dept",
+   "state": "filled"
+  },
+  {
+   "id": "applicant_title",
+   "state": "filled"
+  },
+  {
+   "id": "applicant_name",
+   "state": "filled"
+  },
+  {
+   "id": "applicant_sign",
+   "state": "filled"
+  },
+  {
+   "id": "emergency_site_phone",
+   "state": "filled"
+  },
+  {
+   "id": "emergency_vendor_phone",
+   "state": "filled"
+  },
+  {
+   "id": "apply_date",
+   "state": "filled"
+  },
+  {
+   "id": "apply_time",
+   "state": "filled"
+  },
+  {
+   "id": "work_place",
+   "state": "filled"
+  },
+  {
+   "id": "work_summary",
+   "state": "unclear"
+  },
+  {
+   "id": "vendor_dept",
+   "state": "filled"
+  },
+  {
+   "id": "vendor_name",
+   "state": "filled"
+  },
+  {
+   "id": "vendor_sign",
+   "state": "filled"
+  },
+  {
+   "id": "exec_dept",
+   "state": "filled"
+  },
+  {
+   "id": "exec_name",
+   "state": "filled"
+  },
+  {
+   "id": "exec_sign",
+   "state": "filled"
+  },
+  {
+   "id": "site_dept",
+   "state": "filled"
+  },
+  {
+   "id": "site_name",
+   "state": "filled"
+  },
+  {
+   "id": "site_sign",
+   "state": "filled"
+  },
+  {
+   "id": "firewatch_dept",
+   "state": "filled"
+  },
+  {
+   "id": "firewatch_name",
+   "state": "filled"
+  },
+  {
+   "id": "firewatch_sign",
+   "state": "empty"
+  },
+  {
+   "id": "precheck_time",
+   "state": "filled"
+  },
+  {
+   "id": "precheck_name",
+   "state": "filled"
+  },
+  {
+   "id": "caution",
+   "state": "filled"
+  },
+  {
+   "id": "workers",
+   "state": "filled"
+  },
+  {
+   "id": "approver_name",
+   "state": "filled"
+  },
+  {
+   "id": "approver_sign",
+   "state": "empty"
+  },
+  {
+   "id": "approve_time",
+   "state": "filled"
+  },
+  {
+   "id": "during_check",
+   "state": "empty"
+  },
+  {
+   "id": "after16_sign",
+   "state": "empty"
+  },
+  {
+   "id": "done_vendor_time",
+   "state": "empty"
+  },
+  {
+   "id": "done_vendor_sign",
+   "state": "empty"
+  },
+  {
+   "id": "done_site_time",
+   "state": "empty"
+  },
+  {
+   "id": "done_site_sign",
+   "state": "empty"
+  },
+  {
+   "id": "ext_time",
+   "state": "empty"
+  },
+  {
+   "id": "ext_sign",
+   "state": "empty"
+  },
+  {
+   "id": "ext_reason",
+   "state": "empty"
+  },
+  {
+   "id": "c_time",
+   "state": "filled"
+  },
+  {
+   "id": "c_checker_sign",
+   "state": "filled"
+  },
+  {
+   "id": "c_watcher_name",
+   "state": "filled"
+  },
+  {
+   "id": "c_watcher_sign",
+   "state": "empty"
+  },
+  {
+   "id": "p_breaker_name",
+   "state": "empty"
+  },
+  {
+   "id": "p_breaker_no",
+   "state": "empty"
+  },
+  {
+   "id": "p_time",
+   "state": "empty"
+  },
+  {
+   "id": "p_cutter_name",
+   "state": "empty"
+  },
+  {
+   "id": "p_cutter_sign",
+   "state": "empty"
+  },
+  {
+   "id": "p_cut_time",
+   "state": "empty"
+  },
+  {
+   "id": "p_restore_req_name",
+   "state": "empty"
+  },
+  {
+   "id": "p_restore_req_sign",
+   "state": "empty"
+  },
+  {
+   "id": "p_restore_req_time",
+   "state": "empty"
+  },
+  {
+   "id": "p_restorer_name",
+   "state": "empty"
+  },
+  {
+   "id": "p_restorer_sign",
+   "state": "empty"
+  },
+  {
+   "id": "p_restore_time",
+   "state": "empty"
+  },
+  {
+   "id": "e_civil_dept",
+   "state": "empty"
+  },
+  {
+   "id": "e_civil_name",
+   "state": "empty"
+  },
+  {
+   "id": "e_civil_sign",
+   "state": "empty"
+  },
+  {
+   "id": "e_elec_dept",
+   "state": "empty"
+  },
+  {
+   "id": "e_elec_name",
+   "state": "empty"
+  },
+  {
+   "id": "e_elec_sign",
+   "state": "empty"
+  },
+  {
+   "id": "e_time",
+   "state": "empty"
+  },
+  {
+   "id": "e_checker_name",
+   "state": "empty"
+  },
+  {
+   "id": "e_checker_sign",
+   "state": "empty"
+  },
+  {
+   "id": "r_time",
+   "state": "empty"
+  },
+  {
+   "id": "r_checker_sign",
+   "state": "empty"
+  },
+  {
+   "id": "h_time",
+   "state": "empty"
+  },
+  {
+   "id": "h_equipment",
+   "state": "empty"
+  },
+  {
+   "id": "h_checker_sign",
+   "state": "empty"
+  },
+  {
+   "id": "v_equipment",
+   "state": "empty"
+  },
+  {
+   "id": "v_operator",
+   "state": "empty"
+  },
+  {
+   "id": "v_time",
+   "state": "empty"
+  },
+  {
+   "id": "v_checker_sign",
+   "state": "empty"
+  }
+ ],
+ "checks": [
+  {
+   "id": "type_hot",
+   "state": "checked"
+  },
+  {
+   "id": "type_general",
+   "state": "unchecked"
+  },
+  {
+   "id": "type_danger",
+   "state": "unchecked"
+  },
+  {
+   "id": "att_risk_assessment",
+   "state": "checked"
+  },
+  {
+   "id": "att_work_plan",
+   "state": "unchecked"
+  },
+  {
+   "id": "att_single_line",
+   "state": "unchecked"
+  },
+  {
+   "id": "att_blueprint",
+   "state": "unchecked"
+  },
+  {
+   "id": "att_msds",
+   "state": "checked"
+  },
+  {
+   "id": "att_misc",
+   "state": "unchecked"
+  },
+  {
+   "id": "precheck_ok",
+   "state": "checked"
+  },
+  {
+   "id": "precheck_fix",
+   "state": "unchecked"
+  },
+  {
+   "id": "done_vendor_ok",
+   "state": "unchecked"
+  },
+  {
+   "id": "done_vendor_bad",
+   "state": "unchecked"
+  },
+  {
+   "id": "done_site_ok",
+   "state": "unchecked"
+  },
+  {
+   "id": "done_site_bad",
+   "state": "unchecked"
+  },
+  {
+   "id": "ext_approved",
+   "state": "unchecked"
+  },
+  {
+   "id": "ext_rejected",
+   "state": "unchecked"
+  },
+  {
+   "id": "k_hazard",
+   "state": "checked"
+  },
+  {
+   "id": "k_device",
+   "state": "checked"
+  },
+  {
+   "id": "k_method",
+   "state": "checked"
+  },
+  {
+   "id": "k_criteria",
+   "state": "unchecked"
+  },
+  {
+   "id": "supp_confined",
+   "state": "checked"
+  },
+  {
+   "id": "supp_power_off",
+   "state": "unchecked"
+  },
+  {
+   "id": "supp_excavation",
+   "state": "unchecked"
+  },
+  {
+   "id": "supp_radiation",
+   "state": "unchecked"
+  },
+  {
+   "id": "supp_height",
+   "state": "unchecked"
+  },
+  {
+   "id": "supp_heavy",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_hot",
+   "state": "checked"
+  },
+  {
+   "id": "hzsec_general",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_confined",
+   "state": "checked"
+  },
+  {
+   "id": "hzsec_power_off",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_excavation",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_height",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_heavy",
+   "state": "unchecked"
+  },
+  {
+   "id": "hzsec_radiation",
+   "state": "unchecked"
+  }
+ ],
+ "triples": [
+  {
+   "id": "s_edu",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_zone",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_flammable",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_spark_shield",
+   "needed": "checked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_fire_watch",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_extinguisher",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_gas_test",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_ppe",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_isolation_tag",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_blind_tag",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_equip_route",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_signalman",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_outrigger",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_guardrail",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_vessel_open",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_hazmat_drain",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_vessel_clean",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_inert_purge",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_ventilation",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_confined_watch",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_driver",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_tools",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_lighting",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_rad_ppe",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_rad_leak",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_rad_exam",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "s_rad_dosimeter",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "c_comm",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "c_rescue",
+   "needed": "checked",
+   "confirmed": "checked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "e_gas_pipe",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "e_power_line",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "r_access",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "r_warning",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "r_license",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "r_drawing",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "h_platform",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "h_harness",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "h_net",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "v_license",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "v_supervisor",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  },
+  {
+   "id": "v_ground",
+   "needed": "unchecked",
+   "confirmed": "unchecked",
+   "extended": "unchecked"
+  }
+ ],
+ "gas": [
+  {
+   "column": 1,
+   "time": "filled",
+   "measurer": "filled",
+   "o2": "20.8",
+   "co": "35",
+   "h2s": "0",
+   "ch4": "0",
+   "co2": "0.04"
+  }
+ ],
+ "hazards": [
+  {
+   "id": "hz_hot_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_5",
+   "mark": "none",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_6",
+   "mark": "fix",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_hot_7",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_general_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_general_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_general_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_general_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_5",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_6",
+   "mark": "none",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_7",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_8",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_9",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_confined_10",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_5",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_6",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_power_off_7",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_excavation_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_excavation_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_excavation_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_5",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_6",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_height_7",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_3",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_4",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_5",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_6",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_heavy_7",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_radiation_1",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_radiation_2",
+   "mark": "good",
+   "remedy": "empty"
+  },
+  {
+   "id": "hz_radiation_3",
+   "mark": "good",
+   "remedy": "empty"
+  }
+ ],
+ "apply_end_time": "17:00",
+ "photo_quality_note": "작업개요 칸 일부에 빛 반사가 있음"
+}

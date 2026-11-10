@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업허가서 누락 점검</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1d1f23; --muted: #6b7079; --line: #e3e5e9;
+    --primary: #1f5fbf; --danger: #c62828; --danger-bg: #fdecec; --missing: #d84315; --missing-bg: #fff1e8;
+    --unclear: #8a6d00; --unclear-bg: #fff8db; --warn: #4a5563; --warn-bg: #eef0f3; --ok: #1b7f3b; --ok-bg: #e7f6ec;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+         background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.5; }
+  header { background: var(--primary); color: #fff; padding: 16px; }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 16px; margin: 0 0 10px; }
+  .stages { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stages label { flex: 1 1 30%; min-width: 96px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px;
+                  text-align: center; font-size: 14px; cursor: pointer; }
+  .stages input { display: none; }
+  .stages input:checked + span { color: var(--primary); font-weight: 700; }
+  .stages label:has(input:checked) { border-color: var(--primary); background: #eef4fd; }
+  .drop { display: block; border: 2px dashed #b9c3d3; border-radius: 12px; padding: 22px 12px; text-align: center;
+          color: var(--muted); cursor: pointer; }
+  .drop strong { display: block; color: var(--primary); font-size: 17px; margin-bottom: 4px; }
+  .drop input { display: none; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
+  .thumbs div { position: relative; }
+  .thumbs img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  .thumbs button { position: absolute; top: 4px; right: 4px; border: 0; border-radius: 50%; width: 26px; height: 26px;
+                   background: rgba(0,0,0,.6); color: #fff; font-size: 15px; cursor: pointer; }
+  .tips { font-size: 13px; color: var(--muted); margin: 10px 0 0; padding-left: 18px; }
+  .btn { width: 100%; border: 0; border-radius: 12px; padding: 15px; font-size: 17px; font-weight: 700;
+         background: var(--primary); color: #fff; cursor: pointer; }
+  .btn:disabled { background: #a9b6c9; cursor: default; }
+  .link { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 13px;
+          margin-top: 10px; width: 100%; cursor: pointer; }
+  .verdict { border-radius: 12px; padding: 16px; margin-bottom: 14px; font-weight: 700; font-size: 18px; }
+  .verdict small { display: block; font-weight: 400; font-size: 13px; margin-top: 4px; }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  .verdict.ng { background: var(--danger-bg); color: var(--danger); }
+  .counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .counts div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; font-size: 12px; color: var(--muted); }
+  .counts b { display: block; font-size: 22px; }
+  .lv-danger b { color: var(--danger); } .lv-missing b { color: var(--missing); }
+  .lv-unclear b { color: var(--unclear); } .lv-warn b { color: var(--warn); }
+  .group h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
+  .item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; margin-bottom: 6px; }
+  .item .tag { flex: none; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 7px; margin-top: 2px; }
+  .item .body { min-width: 0; }
+  .item .name { font-weight: 600; word-break: keep-all; }
+  .item .msg { font-size: 14px; color: var(--muted); }
+  .item.danger { background: var(--danger-bg); } .item.danger .tag { background: var(--danger); color: #fff; }
+  .item.missing { background: var(--missing-bg); } .item.missing .tag { background: var(--missing); color: #fff; }
+  .item.unclear { background: var(--unclear-bg); } .item.unclear .tag { background: var(--unclear); color: #fff; }
+  .item.warn { background: var(--warn-bg); } .item.warn .tag { background: var(--warn); color: #fff; }
+  .note { font-size: 13px; color: var(--muted); }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
+             border-radius: 50%; animation: spin 1s linear infinite; vertical-align: -3px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { background: var(--danger-bg); color: var(--danger); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>작업허가서 누락 점검</h1>
+  <p>화기 / 일반 / 위험 작업허가서 사진을 올리면 빠진 칸을 알려드립니다</p>
+</header>
+<main>
+  <section class="card">
+    <h2>1. 점검 시점</h2>
+    <div class="stages">
+      <label><input type="radio" name="stage" value="start" checked><span>작업 시작 전</span></label>
+      <label><input type="radio" name="stage" value="during"><span>작업 중</span></label>
+      <label><input type="radio" name="stage" value="complete"><span>작업 완료 후</span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. 허가서 사진 (1쪽 + 2쪽)</h2>
+    <label class="drop">
+      <strong>📷 사진 찍기 / 선택</strong>
+      앞면(허가서)과 뒷면(잠재위험요인)을 모두 올려주세요
+      <input id="file" type="file" accept="image/*" multiple>
+    </label>
+    <div class="thumbs" id="thumbs"></div>
+    <ul class="tips">
+      <li>종이 네 모서리가 모두 보이게 정면에서 찍어주세요</li>
+      <li>그림자·빛 반사가 없는 곳에서 찍으면 정확도가 올라갑니다</li>
+    </ul>
+  </section>
+
+  <section class="card" id="codeCard" hidden>
+    <h2>3. 접근 코드</h2>
+    <input id="code" type="password" autocomplete="off" placeholder="관리자에게 받은 코드"
+      style="width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:10px">
+  </section>
+
+  <button class="btn" id="run" disabled>누락 점검하기</button>
+  <button class="link" id="demo">사진 없이 예시 결과 보기</button>
+
+  <div id="out" style="margin-top:16px"></div>
+</main>
+
+<script>
+const files = [];
+const $ = (s) => document.querySelector(s);
+const LV = { danger: "위험", missing: "누락", unclear: "확인필요", warn: "주의" };
+
+$("#file").addEventListener("change", (e) => {
+  for (const f of e.target.files) files.push(f);
+  e.target.value = "";
+  render();
+});
+
+function render() {
+  const t = $("#thumbs");
+  t.innerHTML = "";
+  files.forEach((f, i) => {
+    const d = document.createElement("div");
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(f);
+    img.alt = `사진 ${i + 1}`;
+    const b = document.createElement("button");
+    b.textContent = "×";
+    b.setAttribute("aria-label", "사진 삭제");
+    b.onclick = () => { files.splice(i, 1); render(); };
+    d.append(img, b);
+    t.append(d);
+  });
+  $("#run").disabled = files.length === 0;
+}
+
+const stage = () => document.querySelector('input[name="stage"]:checked').value;
+
+// 접근 코드 사용 여부 확인 + 저장된 코드 불러오기
+fetch("/api/config").then((r) => r.json()).then((c) => {
+  if (c.access_code_required) $("#codeCard").hidden = false;
+}).catch(() => {});
+try { $("#code").value = localStorage.getItem("permit_code") || ""; } catch (e) {}
+
+// 서버 요청 한도(4.5MB) 안에 들도록 브라우저에서 사진을 줄여서 보냄
+async function shrink(file, maxEdge = 2000, quality = 0.85) {
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch (e) { bmp = await createImageBitmap(file); }
+  const scale = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(bmp.width * scale);
+  cv.height = Math.round(bmp.height * scale);
+  cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+  return await new Promise((ok) => cv.toBlob(ok, "image/jpeg", quality));
+}
+
+async function call(url, body, headers = {}) {
+  const btn = $("#run");
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>판독 중… (30초~1분)';
+  $("#out").innerHTML = "";
+  try {
+    if (typeof body === "function") body = await body();
+    const res = await fetch(url, { method: "POST", body, headers });
+    let data;
+    try { data = await res.json(); } catch (e) { data = {}; }
+    if (res.status === 413) throw new Error("사진 용량이 너무 큽니다. 장수를 줄여 다시 시도해 주세요.");
+    if (res.status === 504) throw new Error("판독 시간이 초과되었습니다. 다시 시도해 주세요.");
+    if (!res.ok) throw new Error(data.detail || `오류가 발생했습니다 (${res.status}).`);
+    show(data);
+  } catch (e) {
+    $("#out").innerHTML = `<div class="error">${esc(e.message)}</div>`;
+  } finally {
+    btn.textContent = label;
+    btn.disabled = files.length === 0;
+  }
+}
+
+$("#run").onclick = () => {
+  const code = $("#code").value.trim();
+  try { localStorage.setItem("permit_code", code); } catch (e) {}
+  const st = stage();
+  call("/api/check", async () => {
+    const fd = new FormData();
+    for (const [i, f] of files.entries()) fd.append("files", await shrink(f), `photo${i + 1}.jpg`);
+    fd.append("stage", st);
+    return fd;
+  }, code ? { "X-Access-Code": code } : {});
+};
+$("#demo").onclick = () => {
+  const fd = new FormData();
+  fd.append("stage", stage());
+  call("/api/demo", fd);
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function show(r) {
+  const c = r.counts;
+  let h = r.passed
+    ? `<div class="verdict ok">✅ 누락 항목 없음<small>${esc(r.stage_label)} 기준 · 최종 확인은 담당자가 해주세요</small></div>`
+    : `<div class="verdict ng">⚠️ 보완이 필요한 항목이 있습니다<small>${esc(r.stage_label)} 기준</small></div>`;
+  h += `<div class="counts">
+    <div class="lv-danger"><b>${c.danger}</b>위험</div>
+    <div class="lv-missing"><b>${c.missing}</b>누락</div>
+    <div class="lv-unclear"><b>${c.unclear}</b>확인필요</div>
+    <div class="lv-warn"><b>${c.warn}</b>주의</div></div>`;
+  if (r.photo_quality_note) h += `<p class="note">📷 ${esc(r.photo_quality_note)}</p>`;
+
+  const groups = {};
+  for (const f of r.findings) (groups[f.section] ||= []).push(f);
+  h += '<div class="card group">';
+  if (!r.findings.length) h += '<p class="note">표시할 항목이 없습니다.</p>';
+  for (const [sec, items] of Object.entries(groups)) {
+    h += `<h3>${esc(sec)}</h3>`;
+    for (const f of items) {
+      h += `<div class="item ${f.level}"><span class="tag">${LV[f.level]}</span>
+        <div class="body"><div class="name">${esc(f.item)}</div><div class="msg">${esc(f.message)}</div></div></div>`;
+    }
+  }
+  h += "</div>";
+  $("#out").innerHTML = h;
+  $("#out").scrollIntoView({ behavior: "smooth" });
+}
+</script>
+</body>
+</html>
