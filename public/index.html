@@ -3,19 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>작업허가서 누락 점검</title>
+<title>한솔제지 작업허가서 점검</title>
 <style>
   :root {
     --bg: #f4f5f7; --card: #fff; --text: #1d1f23; --muted: #6b7079; --line: #e3e5e9;
-    --primary: #1f5fbf; --danger: #c62828; --danger-bg: #fdecec; --missing: #d84315; --missing-bg: #fff1e8;
+    --primary: #1b64b5; --brand-bg: #e9f3fb; --brand-line: #cfe1f1; --brand-text: #4b4f54; --brand-blue: #2a6ebb; --brand-green: #3a9a4a; --danger: #c62828; --danger-bg: #fdecec; --missing: #d84315; --missing-bg: #fff1e8;
     --unclear: #8a6d00; --unclear-bg: #fff8db; --warn: #4a5563; --warn-bg: #eef0f3; --ok: #1b7f3b; --ok-bg: #e7f6ec;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
          background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.5; }
-  header { background: var(--primary); color: #fff; padding: 16px; }
-  header h1 { margin: 0; font-size: 19px; }
-  header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+  .topbar { background: var(--brand-bg); border-bottom: 1px solid var(--brand-line); }
+  .topbar-inner { max-width: 720px; margin: 0 auto; padding: 0 16px; height: 56px; display: flex; align-items: center; gap: 18px; }
+  .logo { display: flex; align-items: center; gap: 4px; text-decoration: none; color: var(--brand-text);
+          font-family: Arial, "Helvetica Neue", sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.5px; }
+  .logo-mark { display: grid; gap: 3px; margin-right: 1px; }
+  .logo-mark i { display: block; width: 4px; height: 7px; }
+  .logo-mark i:first-child { background: var(--brand-blue); }
+  .logo-mark i:last-child { background: var(--brand-green); }
+  .topbar .app { color: var(--brand-text); font-size: 15px; font-weight: 600; white-space: nowrap;
+                 padding-left: 18px; border-left: 1px solid var(--brand-line); }
+  .hero { max-width: 720px; margin: 0 auto; padding: 18px 16px 2px; }
+  .hero h1 { margin: 0; font-size: 20px; color: var(--text); }
+  .hero p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 380px) { .topbar .app { font-size: 13px; padding-left: 12px; } .topbar-inner { gap: 12px; } }
   main { max-width: 720px; margin: 0 auto; padding: 16px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
   .card h2 { font-size: 16px; margin: 0 0 10px; }
@@ -68,10 +79,18 @@
 </style>
 </head>
 <body>
-<header>
-  <h1>작업허가서 누락 점검</h1>
-  <p>화기 / 일반 / 위험 작업허가서 사진을 올리면 빠진 칸을 알려드립니다</p>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="logo" href="/" aria-label="Hansol 홈">
+      <span class="logo-mark" aria-hidden="true"><i></i><i></i></span>Hansol
+    </a>
+    <span class="app">작업허가서 점검</span>
+  </div>
 </header>
+<div class="hero">
+  <h1>한솔제지 작업허가서 누락 점검</h1>
+  <p>화기 / 일반 / 위험 작업허가서 사진을 올리면 빠진 칸을 알려드립니다</p>
+</div>
 <main>
   <section class="card">
     <h2>1. 점검 시점</h2>
