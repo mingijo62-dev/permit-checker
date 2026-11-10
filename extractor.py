@@ -23,8 +23,8 @@ import form_spec as F
 MODELS = [m.strip() for m in os.environ.get(
     "GEMINI_MODEL", "gemini-2.5-flash,gemini-flash-latest,gemini-2.0-flash,gemini-2.5-flash-lite"
 ).split(",") if m.strip()]
-# Vercel 함수 제한시간(300초) 안에 끝나도록: 모델 1회 시도 최대 75초, 전체 최대 230초
-REQUEST_TIMEOUT_MS = 75_000
+# Vercel 함수 제한시간(300초) 안에 끝나도록: 모델 1회 시도 최대 60초, 전체 최대 230초
+REQUEST_TIMEOUT_MS = 60_000
 TOTAL_DEADLINE_S = 230
 MAX_EDGE = 2400  # 긴 변 기준 리사이즈(px). 너무 작으면 손글씨 판독률이 떨어짐.
 
@@ -32,7 +32,6 @@ log = logging.getLogger("permit")
 _client: genai.Client | None = None
 _last_ok: str | None = None     # 마지막으로 성공한 모델(다음 요청에서 먼저 시도)
 _missing: set[str] = set()      # 이 키로는 없는 모델(404)
-_discovered = False
 
 
 def client() -> genai.Client:
@@ -49,28 +48,58 @@ def client() -> genai.Client:
     return _client
 
 
-_EXCLUDE = ("lite", "image", "tts", "audio", "live", "embed", "robotics", "computer", "veo", "imagen")
+_EXCLUDE = ("image", "tts", "audio", "live", "embed", "robotics", "computer", "veo", "imagen", "thinking")
 
 
-def pick_flash_model(models) -> str | None:
-    """사용 가능한 모델 목록에서 이미지 판독용 Flash 모델 하나를 고름(정식판 우선, 그중 최신 버전)."""
-    best, best_key = None, None
+def rank_flash_models(models) -> list[str]:
+    """이 키로 쓸 수 있는 모델 중 이미지 판독용 Flash 모델을 좋은 순서로 정렬.
+    일반 Flash 먼저(정확도), Lite 는 뒤(혼잡할 때 대안). 각각 정식판 우선, 그다음 최신 버전."""
+    ranked = []
     for m in models:
         name = (m.name or "").removeprefix("models/")
         actions = m.supported_actions or []
-        if "flash" not in name or any(x in name for x in _EXCLUDE):
+        if "gemini" not in name or "flash" not in name or any(x in name for x in _EXCLUDE):
             continue
         if actions and "generateContent" not in actions:
             continue
         ver = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
         key = (
-            "preview" not in name and "exp" not in name,  # 정식판 우선(무료 한도/안정성)
-            float(ver.group(1)) if ver else 0.0,  # 그다음 최신 버전
-            name.endswith("latest") or name.count("-") <= 2,  # 날짜가 붙은 고정판보다 기본 이름 우선
+            "lite" not in name,
+            "preview" not in name and "exp" not in name,
+            float(ver.group(1)) if ver else 0.0,
+            name.endswith("latest") or not re.search(r"-\d{2,}", name.split("flash", 1)[-1]),  # 날짜 고정판보다 기본 이름
         )
-        if best_key is None or key > best_key:
-            best, best_key = name, key
-    return best
+        ranked.append((key, name))
+    ranked.sort(reverse=True)
+    return [n for _, n in ranked]
+
+
+def pick_flash_model(models) -> str | None:
+    r = rank_flash_models(models)
+    return r[0] if r else None
+
+
+_available: list[str] | None = None
+
+
+def available_models() -> list[str]:
+    """처음 한 번 모델 목록을 조회해 시도 순서를 정함(실패하면 기본 목록 사용). 서버가 켜져 있는 동안 재사용."""
+    global _available
+    if _available is None:
+        env = os.environ.get("GEMINI_MODEL")
+        if env:
+            _available = MODELS
+        else:
+            try:
+                found = rank_flash_models(client().models.list())
+                # 기본 목록 중 실제로 있는 것을 우선, 그 외 발견된 모델을 뒤에
+                pref = [m for m in MODELS if m in found or m.endswith("latest")]
+                _available = pref + [m for m in found if m not in pref] or MODELS
+                log.info("available models: %s", _available)
+            except Exception:
+                log.exception("model list failed; using defaults")
+                _available = MODELS
+    return _available
 
 
 # ---------------------------------------------------------------------------
@@ -288,65 +317,68 @@ def extract(images: list[bytes]) -> dict:
         ))
     contents.append("위 사진의 작업허가서를 판독해 JSON으로 보고하세요.")
 
-    global _last_ok, _discovered
+    global _last_ok
     started = time.monotonic()
-    queue = ([_last_ok] if _last_ok else []) + [m for m in MODELS if m != _last_ok]
+    chain = available_models()
+    queue = ([_last_ok] if _last_ok else []) + [m for m in chain if m != _last_ok]
     tried: list[str] = []
-    errors_seen: list[str] = []
+    results: list[tuple[str, str]] = []  # (모델, 결과코드)
     resp = None
-    while queue:
+    while queue and len(tried) < 5:
         model = queue.pop(0)
         if model in _missing or model in tried:
             continue
         if time.monotonic() - started > TOTAL_DEADLINE_S - 30:
             break
         tried.append(model)
-        t0 = time.monotonic()
-        try:
-            resp = client().models.generate_content(model=model, contents=contents, config=_config(model))
-            log.info("gemini ok in %.0fs (model=%s, tried=%s)", time.monotonic() - t0, model, tried)
-            _last_ok = model
+        for attempt in (1, 2):  # 일시적 혼잡(503)이면 같은 모델로 한 번 더
+            t0 = time.monotonic()
+            try:
+                resp = client().models.generate_content(model=model, contents=contents, config=_config(model))
+                log.info("gemini ok in %.0fs (model=%s, attempt=%d, before=%s)", time.monotonic() - t0, model, attempt, results)
+                _last_ok = model
+                break
+            except genai_errors.ClientError as e:
+                msg = str(e)
+                if e.code == 404:
+                    _missing.add(model)
+                    results.append((model, "404"))
+                elif e.code == 429:
+                    results.append((model, "429"))
+                    log.warning("model %s quota exceeded: %s", model, (e.message or msg)[:300])
+                elif e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
+                    raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
+                else:
+                    log.warning("model %s client error %s: %s", model, e.code, msg[:300])
+                    results.append((model, str(e.code)))
+                break
+            except genai_errors.ServerError as e:
+                results.append((model, str(e.code)))
+                log.warning("model %s server error %s after %.0fs", model, e.code, time.monotonic() - t0)
+                if e.code == 503 and attempt == 1 and time.monotonic() - started < TOTAL_DEADLINE_S - 60:
+                    time.sleep(1.5)
+                    continue
+                break
+            except Exception as e:
+                if "Timeout" not in type(e).__name__:
+                    raise
+                results.append((model, "시간초과"))
+                log.warning("model %s timeout after %.0fs", model, time.monotonic() - t0)
+                break
+        if resp is not None:
             break
-        except genai_errors.ClientError as e:
-            msg = str(e)
-            if e.code == 404:
-                _missing.add(model)
-                errors_seen.append("404")
-                if not _discovered:  # 이 키로 쓸 수 있는 Flash 모델을 한 번 조회해 후보에 추가
-                    _discovered = True
-                    try:
-                        found = pick_flash_model(client().models.list())
-                        if found:
-                            queue.append(found)
-                    except Exception:
-                        log.exception("model list failed")
-                log.warning("model %s not found", model)
-                continue
-            if e.code == 429:
-                errors_seen.append("429")
-                log.warning("model %s quota exceeded", model)
-                continue
-            if e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
-                raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
-            raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
-        except genai_errors.ServerError as e:
-            errors_seen.append(str(e.code))
-            log.warning("model %s server error %s after %.0fs", model, e.code, time.monotonic() - t0)
-            continue
-        except Exception as e:
-            if "Timeout" not in type(e).__name__:
-                raise
-            errors_seen.append("timeout")
-            log.warning("model %s timeout after %.0fs", model, time.monotonic() - t0)
-            continue
 
     if resp is None:
-        log.warning("all models failed: tried=%s errors=%s", tried, errors_seen)
-        if errors_seen and all(x == "429" for x in errors_seen):
-            raise ExtractionError("무료 사용량 한도에 도달했습니다. 1분 뒤 다시 시도하거나, 오늘 한도가 찼다면 내일 다시 시도해 주세요.", 429)
-        if errors_seen and all(x == "404" for x in errors_seen):
-            raise ExtractionError("이 API 키로 사용할 수 있는 Gemini 모델을 찾지 못했습니다. 관리자에게 문의하세요.", 500)
-        raise ExtractionError("Google AI 무료 서버가 모두 혼잡합니다. 1~2분 뒤 다시 시도해 주세요.", 503)
+        log.warning("all models failed: %s", results)
+        codes = [c for _, c in results]
+        detail = ", ".join(f"{m}:{c}" for m, c in results) or "시도한 모델 없음"
+        if codes and all(c in ("429", "404") for c in codes) and "429" in codes:
+            raise ExtractionError(
+                "Gemini 무료 사용량 한도를 넘었습니다. 분당 한도라면 1분 뒤, 일일 한도라면 내일(한국시간 오후 4~5시 초기화) 다시 시도해 주세요.\n"
+                f"[상세] {detail}", 429)
+        if codes and all(c == "404" for c in codes):
+            raise ExtractionError(f"이 API 키로 쓸 수 있는 Gemini 모델을 찾지 못했습니다.\n[상세] {detail}", 500)
+        raise ExtractionError(f"Google AI 무료 서버가 혼잡합니다. 1~2분 뒤 다시 시도해 주세요.\n[상세] {detail}", 503)
 
     cand = (resp.candidates or [None])[0]
     reason = getattr(getattr(cand, "finish_reason", None), "name", "") if cand else ""
