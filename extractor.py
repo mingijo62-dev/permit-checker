@@ -18,17 +18,21 @@ from PIL import Image, ImageOps
 
 import form_spec as F
 
-# 기본 모델. 이 이름을 못 찾으면 키로 쓸 수 있는 Flash 모델을 자동으로 골라 씁니다.
-# 다른 모델로 바꾸려면 GEMINI_MODEL 환경변수 설정.
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-# Vercel 함수 제한시간(300초) 안에 끝나도록: 요청 1회 최대 100초, 재시도는 1회만, 대기는 짧게
-REQUEST_TIMEOUT_MS = 100_000
+# 시도할 모델 순서. 앞 모델이 혼잡(503)·한도초과(429)·없음(404)·시간초과면 다음 모델로 넘어갑니다.
+# 바꾸려면 GEMINI_MODEL 환경변수에 쉼표로 구분해 설정(예: "gemini-2.5-flash,gemini-2.0-flash").
+MODELS = [m.strip() for m in os.environ.get(
+    "GEMINI_MODEL", "gemini-2.5-flash,gemini-flash-latest,gemini-2.0-flash,gemini-2.5-flash-lite"
+).split(",") if m.strip()]
+# Vercel 함수 제한시간(300초) 안에 끝나도록: 모델 1회 시도 최대 75초, 전체 최대 230초
+REQUEST_TIMEOUT_MS = 75_000
+TOTAL_DEADLINE_S = 230
 MAX_EDGE = 2400  # 긴 변 기준 리사이즈(px). 너무 작으면 손글씨 판독률이 떨어짐.
 
 log = logging.getLogger("permit")
 _client: genai.Client | None = None
-_model: str = MODEL
-_model_resolved = False
+_last_ok: str | None = None     # 마지막으로 성공한 모델(다음 요청에서 먼저 시도)
+_missing: set[str] = set()      # 이 키로는 없는 모델(404)
+_discovered = False
 
 
 def client() -> genai.Client:
@@ -40,7 +44,7 @@ def client() -> genai.Client:
         _client = genai.Client(http_options=types.HttpOptions(
             api_version="v1beta",
             timeout=REQUEST_TIMEOUT_MS,
-            retry_options=types.HttpRetryOptions(attempts=2, initial_delay=2, max_delay=5),
+            retry_options=types.HttpRetryOptions(attempts=1),  # 같은 모델 재시도 대신 다른 모델로 넘어감
         ))
     return _client
 
@@ -284,42 +288,65 @@ def extract(images: list[bytes]) -> dict:
         ))
     contents.append("위 사진의 작업허가서를 판독해 JSON으로 보고하세요.")
 
-    global _model, _model_resolved
+    global _last_ok, _discovered
     started = time.monotonic()
-    try:
+    queue = ([_last_ok] if _last_ok else []) + [m for m in MODELS if m != _last_ok]
+    tried: list[str] = []
+    errors_seen: list[str] = []
+    resp = None
+    while queue:
+        model = queue.pop(0)
+        if model in _missing or model in tried:
+            continue
+        if time.monotonic() - started > TOTAL_DEADLINE_S - 30:
+            break
+        tried.append(model)
+        t0 = time.monotonic()
         try:
-            resp = client().models.generate_content(model=_model, contents=contents, config=_config(_model))
+            resp = client().models.generate_content(model=model, contents=contents, config=_config(model))
+            log.info("gemini ok in %.0fs (model=%s, tried=%s)", time.monotonic() - t0, model, tried)
+            _last_ok = model
+            break
         except genai_errors.ClientError as e:
-            if e.code != 404 or _model_resolved:
+            msg = str(e)
+            if e.code == 404:
+                _missing.add(model)
+                errors_seen.append("404")
+                if not _discovered:  # 이 키로 쓸 수 있는 Flash 모델을 한 번 조회해 후보에 추가
+                    _discovered = True
+                    try:
+                        found = pick_flash_model(client().models.list())
+                        if found:
+                            queue.append(found)
+                    except Exception:
+                        log.exception("model list failed")
+                log.warning("model %s not found", model)
+                continue
+            if e.code == 429:
+                errors_seen.append("429")
+                log.warning("model %s quota exceeded", model)
+                continue
+            if e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
+                raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
+            raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
+        except genai_errors.ServerError as e:
+            errors_seen.append(str(e.code))
+            log.warning("model %s server error %s after %.0fs", model, e.code, time.monotonic() - t0)
+            continue
+        except Exception as e:
+            if "Timeout" not in type(e).__name__:
                 raise
-            # 모델 이름을 못 찾음 → 이 키로 쓸 수 있는 Flash 모델을 찾아 한 번 재시도
-            _model_resolved = True
-            found = pick_flash_model(client().models.list())
-            if not found:
-                raise
-            log.warning("model %s not found, using %s", _model, found)
-            _model = found
-            resp = client().models.generate_content(model=_model, contents=contents, config=_config(_model))
-    except genai_errors.ClientError as e:
-        msg = str(e)
-        if e.code == 429:
+            errors_seen.append("timeout")
+            log.warning("model %s timeout after %.0fs", model, time.monotonic() - t0)
+            continue
+
+    if resp is None:
+        log.warning("all models failed: tried=%s errors=%s", tried, errors_seen)
+        if errors_seen and all(x == "429" for x in errors_seen):
             raise ExtractionError("무료 사용량 한도에 도달했습니다. 1분 뒤 다시 시도하거나, 오늘 한도가 찼다면 내일 다시 시도해 주세요.", 429)
-        if e.code in (400, 401, 403) and ("API_KEY" in msg or "API key" in msg or e.code != 400):
-            raise ExtractionError("서버의 GEMINI_API_KEY가 올바르지 않습니다. 관리자에게 문의하세요.", 500)
-        if e.code == 404:
-            raise ExtractionError(f"AI 모델({_model})을 찾을 수 없습니다. GEMINI_MODEL 환경변수를 확인하세요.", 500)
-        raise ExtractionError(f"AI 판독 요청 오류({e.code}): {e.message or msg}", 502)
-    except genai_errors.ServerError as e:
-        log.warning("gemini server error %s after %.0fs", e.code, time.monotonic() - started)
-        if e.code == 503:
-            raise ExtractionError("Google AI 무료 서버가 혼잡합니다. 1~2분 뒤 다시 시도해 주세요.", 503)
-        raise ExtractionError(f"AI 판독 서버 오류({e.code}). 잠시 후 다시 시도해 주세요.", 502)
-    except Exception as e:
-        if "Timeout" not in type(e).__name__:
-            raise
-        log.warning("gemini timeout after %.0fs (model=%s)", time.monotonic() - started, _model)
-        raise ExtractionError("AI 응답이 너무 오래 걸립니다(무료 서버 혼잡). 잠시 후 다시 시도해 주세요.", 504)
-    log.info("gemini ok in %.0fs (model=%s)", time.monotonic() - started, _model)
+        if errors_seen and all(x == "404" for x in errors_seen):
+            raise ExtractionError("이 API 키로 사용할 수 있는 Gemini 모델을 찾지 못했습니다. 관리자에게 문의하세요.", 500)
+        raise ExtractionError("Google AI 무료 서버가 모두 혼잡합니다. 1~2분 뒤 다시 시도해 주세요.", 503)
 
     cand = (resp.candidates or [None])[0]
     reason = getattr(getattr(cand, "finish_reason", None), "name", "") if cand else ""

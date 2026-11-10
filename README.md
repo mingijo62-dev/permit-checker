@@ -35,4 +35,4 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 - 사진은 서버에 저장하지 않습니다.
 - 무료 사용량에는 분당/일일 요청 한도가 있습니다. 한도를 넘으면 화면에 안내 문구가 나옵니다.
 - 무료 사용량에서는 Google이 입력 데이터를 서비스 개선에 활용할 수 있습니다(약관 참조). 허가서의 개인정보 처리 방침을 사내 규정과 함께 확인하세요.
-- 모델을 바꾸려면 `GEMINI_MODEL` 환경변수를 설정합니다(기본값 `gemini-flash-latest`).
+- 모델이 혼잡하면 gemini-2.5-flash → gemini-flash-latest → gemini-2.0-flash → gemini-2.5-flash-lite 순서로 자동 전환합니다. 순서를 바꾸려면 `GEMINI_MODEL`에 쉼표로 구분해 설정합니다.
